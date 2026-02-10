@@ -1,6 +1,5 @@
 package rbac.permission;
 
-import java.util.Locale;
 
 public record Permission(String name, String resource, String description) {
     public Permission{
