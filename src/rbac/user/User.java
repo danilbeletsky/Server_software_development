@@ -6,7 +6,7 @@ public record User(String username, String fullname, String email) {
 
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{3,20}$");
 
-    public static User valibate(String username, String fullname, String email) {
+    public static User validate(String username, String fullname, String email) {
     if (isBlank(username)){
         throw  new IllegalArgumentException("Username пользователя не должно быть пустым!");
     }
