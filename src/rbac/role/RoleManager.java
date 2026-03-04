@@ -44,6 +44,7 @@ public final class RoleManager implements Repository<Role> {
         }
         rolesById.remove(existing.getId());
         rolesByName.remove(existing.getName());
+        existing.releaseName();
         return true;
     }
 
@@ -109,6 +110,21 @@ public final class RoleManager implements Repository<Role> {
 
     public List<Role> searchByMinPermissions(int min) {
         return findByFilter(RoleFilters.hasAtLeastNPermissions(min));
+    }
+
+    public void update(String roleName, String newName, String newDescription) {
+        Role existing = rolesByName.get(requireNonBlank(roleName, "roleName"));
+        if (existing == null) {
+            throw new IllegalArgumentException("Role with name '" + roleName + "' not found");
+        }
+        String name = newName != null && !newName.isBlank() ? newName.trim() : existing.getName();
+        String desc = newDescription != null && !newDescription.isBlank() ? newDescription.trim() : existing.getDescription();
+        Role updated = new Role(name, desc);
+        for (Permission p : existing.getPermissions()) {
+            updated.addPermission(p);
+        }
+        remove(existing);
+        add(updated);
     }
 
     public boolean exists(String name) {

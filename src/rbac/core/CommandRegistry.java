@@ -180,7 +180,7 @@ public class CommandRegistry {
             String name = scanner.nextLine().trim();
             System.out.print("Description: ");
             String description = scanner.nextLine().trim();
-            Role role = new Role(UUID.randomUUID().toString(), name, description);
+            Role role = new Role(name, description);
             rm.add(role);
             System.out.println("Role created. Add permissions (empty name to stop).");
             while (true) {
@@ -213,24 +213,16 @@ public class CommandRegistry {
             RoleManager rm = system.getRoleManager();
             System.out.print("Role name: ");
             String name = scanner.nextLine().trim();
-            Optional<Role> roleOpt = rm.findByName(name);
-            if (roleOpt.isEmpty()) {
-                System.out.println("Role not found.");
-                return;
-            }
-            Role role = roleOpt.get();
             System.out.print("New name (blank to keep): ");
             String newName = scanner.nextLine().trim();
-            if (!newName.isEmpty()) {
-                role.setName(newName);
-            }
             System.out.print("New description (blank to keep): ");
             String newDesc = scanner.nextLine().trim();
-            if (!newDesc.isEmpty()) {
-                role.setDescription(newDesc);
+            try {
+                rm.update(name, newName.isEmpty() ? null : newName, newDesc.isEmpty() ? null : newDesc);
+                System.out.println("Role updated.");
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error: " + e.getMessage());
             }
-            rm.update(role);
-            System.out.println("Role updated.");
         });
 
         parser.registerCommand("role-delete", "Delete role", (scanner, system) -> {
@@ -442,7 +434,7 @@ public class CommandRegistry {
 
         parser.registerCommand("assignment-expired", "Expired assignments", (scanner, system) -> {
             AssignmentManager am = system.getAssignmentManager();
-            am.getExpired().forEach(a -> System.out.printf(
+            am.getExpiredAssignments().forEach(a -> System.out.printf(
                     "%s: user=%s, role=%s, at=%s, expired=%s%n",
                     a.getId(), a.getUsername(), a.getRoleName(),
                     a.getAssignedAt(), a.getExpiresAt()));

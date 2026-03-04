@@ -85,4 +85,13 @@ public class Role {
     public String getName() {
         return name;
     }
+
+    public String getDescription() {
+        return description;
+    }
+
+    /** Called when this role is removed from the manager so the name can be reused. */
+    public void releaseName() {
+        USED_NAMES.remove(this.name);
+    }
 }
