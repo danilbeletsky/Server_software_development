@@ -1,3 +1,5 @@
+import java.util.Objects;
+
 @FunctionalInterface
 public interface RoleFilter {
 
@@ -17,8 +19,6 @@ public interface RoleFilter {
         return role -> this.test(role) || other.test(role);
     }
 }
-
-import java.util.Objects;
 
 final class RoleFilters {
 

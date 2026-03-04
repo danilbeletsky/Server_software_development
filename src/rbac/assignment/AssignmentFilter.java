@@ -1,3 +1,6 @@
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
 @FunctionalInterface
 public interface AssignmentFilter {
 
@@ -17,9 +20,6 @@ public interface AssignmentFilter {
         return assignment -> this.test(assignment) || other.test(assignment);
     }
 }
-
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 
 final class AssignmentFilters {
 
