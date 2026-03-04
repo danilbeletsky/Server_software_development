@@ -26,7 +26,7 @@ jobs:
       - name: Compile Java files
         run: |
           echo "Compiling Java files..."
-          javac -d out src/models/*.java src/filters/*.java src/sorters/*.java src/repositories/*.java src/managers/*.java
+          javac -d out -sourcepath src $(find src -name "*.java")
           echo "Compilation completed!"
 
       - name: Create JAR file
@@ -51,7 +51,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Dev'
 
     steps:
       - name: Download JAR artifact
@@ -62,12 +62,12 @@ jobs:
       - name: Deploy application
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo " Deploying to PRODUCTION environment..."
+            echo "Deploying to PRODUCTION environment..."
             mkdir -p deploy/production
             cp rbac-system.jar deploy/production/
             echo "Production deployment completed at $(date)" > deploy/production/deploy-info.txt
           else
-            echo " Deploying to DEVELOPMENT environment..."
+            echo "Deploying to DEVELOPMENT environment..."
             mkdir -p deploy/development
             cp rbac-system.jar deploy/development/
             echo "Development deployment completed at $(date)" > deploy/development/deploy-info.txt
