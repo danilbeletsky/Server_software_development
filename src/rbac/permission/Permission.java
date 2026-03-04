@@ -23,6 +23,9 @@ public record Permission(String name, String resource, String description) {
 
     }
 
+    public String getName() { return name; }
+    public String getResource() { return resource; }
+
     public String format () {
         return "%s on %s: %s".formatted(name, resource, description);
     }

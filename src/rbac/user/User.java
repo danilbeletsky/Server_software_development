@@ -26,6 +26,10 @@ public record User(String username, String fullname, String email) {
         return "%s (%s) <%s>".formatted(username, fullname, email);
     }
 
+    public String getUsername() { return username; }
+    public String getFullName() { return fullname; }
+    public String getEmail() { return email; }
+
 
         private static boolean isBlank(String s){
             return s == null || s.isBlank();

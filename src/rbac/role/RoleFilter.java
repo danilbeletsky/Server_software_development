@@ -1,3 +1,7 @@
+package rbac.role;
+
+import rbac.permission.Permission;
+
 import java.util.Objects;
 
 @FunctionalInterface
@@ -66,6 +70,12 @@ final class RoleFilters {
             throw new IllegalArgumentException("n must be >= 0");
         }
         return role -> role != null && role.getPermissions().size() >= n;
+    }
+
+    static RoleFilter byPermissionName(String permissionName) {
+        String name = nonNullTrim(permissionName);
+        return role -> role != null && role.getPermissions().stream()
+                .anyMatch(p -> name.equals(p.getName()));
     }
 
     private static String nonNullTrim(String value) {

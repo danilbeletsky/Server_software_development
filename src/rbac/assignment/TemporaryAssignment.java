@@ -3,6 +3,7 @@ package rbac.assignment;
 import rbac.role.Role;
 import rbac.user.User;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class TemporaryAssignment extends AbstractRoleAssignment {
@@ -45,5 +46,21 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
     @Override
     public String summary() {
         return super.summary() + "\nExpiration: " + expiresAt;
+    }
+
+    @Override
+    public LocalDate getExpirationDate() {
+        if (expiresAt == null) return null;
+        try {
+            return LocalDate.parse(expiresAt.substring(0, Math.min(10, expiresAt.length())));
+        } catch (Exception e) { return null; }
+    }
+
+    @Override
+    public String getExpiresAt() { return expiresAt; }
+
+    @Override
+    public void setExpirationDate(LocalDate date) {
+        this.expiresAt = date != null ? date.toString() : null;
     }
 }

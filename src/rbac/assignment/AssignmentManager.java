@@ -1,3 +1,12 @@
+package rbac.assignment;
+
+import rbac.Repository;
+import rbac.permission.Permission;
+import rbac.role.Role;
+import rbac.role.RoleManager;
+import rbac.user.User;
+import rbac.user.UserManager;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -60,7 +69,7 @@ public final class AssignmentManager implements Repository<RoleAssignment> {
         if (item == null) {
             return false;
         }
-        return assignments.remove(item.getAssignmentId(), item);
+        return assignments.remove(item.assignmentId(), item);
     }
 
     @Override
@@ -131,6 +140,31 @@ public final class AssignmentManager implements Repository<RoleAssignment> {
             filtered.sort(sorter);
         }
         return filtered;
+    }
+
+    public List<RoleAssignment> getByUser(String username) {
+        return findByUser(userManager.findByUsername(username).orElse(null));
+    }
+
+    public List<RoleAssignment> getByRole(String roleName) {
+        return findByRole(roleManager.findByName(roleName).orElse(null));
+    }
+
+    public void deleteAssignmentsForUser(String username) {
+        User u = userManager.findByUsername(username).orElse(null);
+        if (u != null) {
+            for (RoleAssignment a : new ArrayList<>(findByUser(u))) {
+                remove(a);
+            }
+        }
+    }
+
+    public void revoke(RoleAssignment a) {
+        if (a != null) revokeAssignment(a.assignmentId());
+    }
+
+    public List<RoleAssignment> getActive() {
+        return getActiveAssignments();
     }
 
     public List<RoleAssignment> getActiveAssignments() {

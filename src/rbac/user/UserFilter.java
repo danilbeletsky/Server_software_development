@@ -1,3 +1,5 @@
+package rbac.user;
+
 @FunctionalInterface
 public interface UserFilter {
 
@@ -41,6 +43,14 @@ final class UserFilters {
     static UserFilter byEmail(String email) {
         String expected = nonNullTrim(email);
         return user -> user != null && expected.equals(user.getEmail());
+    }
+
+    static UserFilter byEmailContains(String substring) {
+        String part = nonNullTrim(substring).toLowerCase();
+        return user -> {
+            if (user == null || user.getEmail() == null) return false;
+            return user.getEmail().toLowerCase().contains(part);
+        };
     }
 
     static UserFilter byEmailDomain(String domain) {

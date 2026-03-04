@@ -1,3 +1,8 @@
+package rbac.assignment;
+
+import rbac.role.Role;
+import rbac.user.User;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 

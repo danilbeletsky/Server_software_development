@@ -1,3 +1,8 @@
+package rbac.role;
+
+import rbac.Repository;
+import rbac.permission.Permission;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -94,11 +99,27 @@ public final class RoleManager implements Repository<Role> {
         return filtered;
     }
 
+    public List<Role> searchByNameContains(String part) {
+        return findByFilter(RoleFilters.byNameContains(part));
+    }
+
+    public List<Role> searchByPermission(String permissionName) {
+        return findByFilter(RoleFilters.byPermissionName(permissionName));
+    }
+
+    public List<Role> searchByMinPermissions(int min) {
+        return findByFilter(RoleFilters.hasAtLeastNPermissions(min));
+    }
+
     public boolean exists(String name) {
         if (name == null) {
             return false;
         }
         return rolesByName.containsKey(name);
+    }
+
+    public void addPermissionToRole(Role role, Permission permission) {
+        if (role != null) addPermissionToRole(role.getName(), permission);
     }
 
     public void addPermissionToRole(String roleName, Permission permission) {

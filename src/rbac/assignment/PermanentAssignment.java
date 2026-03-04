@@ -11,6 +11,7 @@ public class PermanentAssignment extends AbstractRoleAssignment {
         super(user, role, metadata);
     }
 
+    @Override
     public void revoke() {
         revoked = true;
     }

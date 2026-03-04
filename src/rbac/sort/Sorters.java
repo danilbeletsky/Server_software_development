@@ -1,3 +1,9 @@
+package rbac.sort;
+
+import rbac.assignment.RoleAssignment;
+import rbac.role.Role;
+import rbac.user.User;
+
 import java.util.Comparator;
 
 final class UserSorters {

@@ -1,20 +1,29 @@
 package rbac.core;
 
-import rbac.manager.AssignmentManager;
-import rbac.manager.RoleManager;
-import rbac.manager.UserManager;
-import rbac.model.Assignment;
-import rbac.model.Permission;
-import rbac.model.Role;
-import rbac.model.User;
+import rbac.assignment.AssignmentManager;
+import rbac.assignment.RoleAssignment;
+import rbac.permission.Permission;
+import rbac.role.Role;
+import rbac.role.RoleManager;
 import rbac.system.RBACSystem;
+import rbac.user.User;
+import rbac.user.UserManager;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.UUID;
+
+import rbac.assignment.AssignmentMetadata;
+import rbac.assignment.AssignmentType;
+import rbac.assignment.PermanentAssignment;
+import rbac.assignment.TemporaryAssignment;
 
 public class CommandRegistry {
 
@@ -71,13 +80,18 @@ public class CommandRegistry {
 
             AssignmentManager am = system.getAssignmentManager();
             RoleManager rm = system.getRoleManager();
-            List<Assignment> assignments = am.getByUser(username);
+            List<RoleAssignment> assignments = am.getByUser(username);
             System.out.println("Roles:");
             assignments.forEach(a -> System.out.printf("- %s (%s)%n", a.getRoleName(), a.getStatus()));
             System.out.println("Permissions:");
-            am.getUserPermissions(username, rm.getAll()).forEach((resource, perms) -> {
+            Set<Permission> perms = am.getUserPermissions(user);
+            Map<String, Set<Permission>> byResource = new HashMap<>();
+            for (Permission p : perms) {
+                byResource.computeIfAbsent(p.getResource(), k -> new HashSet<>()).add(p);
+            }
+            byResource.forEach((resource, plist) -> {
                 System.out.println("  " + resource + ":");
-                perms.forEach(p -> System.out.println("    - " + p.getName()));
+                plist.forEach(p -> System.out.println("    - " + p.getName()));
             });
         });
 
@@ -230,7 +244,7 @@ public class CommandRegistry {
                 return;
             }
             Role role = roleOpt.get();
-            List<Assignment> assignments = am.getByRole(role.getName());
+            List<RoleAssignment> assignments = am.getByRole(role.getName());
             if (!assignments.isEmpty()) {
                 System.out.println("Role is assigned to users:");
                 assignments.forEach(a -> System.out.println(" - " + a.getUsername()));
@@ -241,7 +255,7 @@ public class CommandRegistry {
                     return;
                 }
             }
-            rm.delete(role);
+            rm.remove(role);
             System.out.println("Role deleted.");
         });
 
@@ -286,7 +300,8 @@ public class CommandRegistry {
                 System.out.println("Invalid index.");
                 return;
             }
-            role.removePermission(idx);
+            List<Permission> plist = new ArrayList<>(role.getPermissions());
+            if (idx >= 0 && idx < plist.size()) role.removePermission(plist.get(idx));
             System.out.println("Permission removed.");
         });
 
@@ -329,10 +344,12 @@ public class CommandRegistry {
 
             System.out.print("Username: ");
             String username = scanner.nextLine().trim();
-            if (um.findByUsername(username).isEmpty()) {
+            Optional<User> userOpt = um.findByUsername(username);
+            if (userOpt.isEmpty()) {
                 System.out.println("User not found.");
                 return;
             }
+            User user = userOpt.get();
 
             List<Role> roles = new ArrayList<>(rm.getAll());
             for (int i = 0; i < roles.size(); i++) {
@@ -348,20 +365,21 @@ public class CommandRegistry {
 
             System.out.print("Type (1-permanent, 2-temporary): ");
             String typeStr = scanner.nextLine().trim();
-            Assignment.Type type = "2".equals(typeStr)
-                    ? Assignment.Type.TEMPORARY
-                    : Assignment.Type.PERMANENT;
+            AssignmentType type = "2".equals(typeStr) ? AssignmentType.TEMPORARY : AssignmentType.PERMANENT;
             String expiresAt = null;
-            if (type == Assignment.Type.TEMPORARY) {
+            if (type == AssignmentType.TEMPORARY) {
                 System.out.print("Expires at (YYYY-MM-DD): ");
                 expiresAt = scanner.nextLine().trim();
             }
             System.out.print("Reason: ");
             String reason = scanner.nextLine().trim();
 
-            Assignment a = new Assignment(username, role.getName(), type,
-                    "2026-01-01", expiresAt, reason);
-            am.add(a);
+            AssignmentMetadata meta = AssignmentMetadata.now(username, reason);
+            if (type == AssignmentType.TEMPORARY) {
+                am.add(new TemporaryAssignment(user, role, meta, expiresAt != null ? expiresAt : "2099-12-31", false));
+            } else {
+                am.add(new PermanentAssignment(user, role, meta));
+            }
             System.out.println("Role assigned.");
         });
 
@@ -369,9 +387,9 @@ public class CommandRegistry {
             AssignmentManager am = system.getAssignmentManager();
             System.out.print("Username: ");
             String username = scanner.nextLine().trim();
-            List<Assignment> list = am.getByUser(username);
+            List<RoleAssignment> list = am.getByUser(username);
             for (int i = 0; i < list.size(); i++) {
-                Assignment a = list.get(i);
+                RoleAssignment a = list.get(i);
                 System.out.printf("%d) %s (%s)%n", i + 1, a.getRoleName(), a.getStatus());
             }
             System.out.print("Choose assignment number: ");
@@ -380,7 +398,7 @@ public class CommandRegistry {
                 System.out.println("Invalid index.");
                 return;
             }
-            Assignment a = list.get(idx);
+            RoleAssignment a = list.get(idx);
             am.revoke(a);
             System.out.println("Assignment revoked.");
         });
@@ -434,15 +452,15 @@ public class CommandRegistry {
             AssignmentManager am = system.getAssignmentManager();
             System.out.print("Assignment ID: ");
             String id = scanner.nextLine().trim();
-            Optional<Assignment> opt = am.findById(id);
+            Optional<RoleAssignment> opt = am.findById(id);
             if (opt.isEmpty()) {
                 System.out.println("Assignment not found.");
                 return;
             }
-            Assignment a = opt.get();
+            RoleAssignment a = opt.get();
             System.out.print("New expires at (YYYY-MM-DD): ");
             String date = scanner.nextLine().trim();
-            a.setExpiresAt(date);
+            am.extendTemporaryAssignment(a.assignmentId(), date);
             System.out.println("Extended.");
         });
 
@@ -454,7 +472,7 @@ public class CommandRegistry {
             System.out.println("3 - by type");
             System.out.println("4 - by status");
             String choice = scanner.nextLine().trim();
-            List<Assignment> result = new ArrayList<>();
+            List<RoleAssignment> result = new ArrayList<>();
             switch (choice) {
                 case "1" -> {
                     System.out.print("Username: ");
@@ -474,10 +492,10 @@ public class CommandRegistry {
                             .toList();
                 }
                 case "4" -> {
-                    System.out.print("Status (ACTIVE/EXPIRED/REVOKED): ");
+                    System.out.print("Status (ACTIVE/INACTIVE): ");
                     String s = scanner.nextLine().trim().toUpperCase();
                     result = am.getAll().stream()
-                            .filter(a -> a.getStatus().name().equals(s))
+                            .filter(a -> a.getStatus().equals(s))
                             .toList();
                 }
                 default -> System.out.println("Unknown option");
@@ -492,30 +510,44 @@ public class CommandRegistry {
     private static void registerPermissionCommands(CommandParser parser) {
         parser.registerCommand("permissions-user", "List user's permissions", (scanner, system) -> {
             AssignmentManager am = system.getAssignmentManager();
-            RoleManager rm = system.getRoleManager();
+            UserManager um = system.getUserManager();
             System.out.print("Username: ");
             String username = scanner.nextLine().trim();
-            var map = am.getUserPermissions(username, rm.getAll());
-            if (map.isEmpty()) {
+            User user = um.findByUsername(username).orElse(null);
+            if (user == null) {
+                System.out.println("User not found.");
+                return;
+            }
+            Set<Permission> perms = am.getUserPermissions(user);
+            if (perms.isEmpty()) {
                 System.out.println("No permissions.");
                 return;
             }
-            map.forEach((resource, perms) -> {
+            Map<String, Set<Permission>> byResource = new HashMap<>();
+            for (Permission p : perms) {
+                byResource.computeIfAbsent(p.getResource(), k -> new HashSet<>()).add(p);
+            }
+            byResource.forEach((resource, plist) -> {
                 System.out.println(resource + ":");
-                perms.forEach(p -> System.out.println("  - " + p.getName()));
+                plist.forEach(p -> System.out.println("  - " + p.getName()));
             });
         });
 
         parser.registerCommand("permissions-check", "Check user's permission", (scanner, system) -> {
             AssignmentManager am = system.getAssignmentManager();
-            RoleManager rm = system.getRoleManager();
+            UserManager um = system.getUserManager();
             System.out.print("Username: ");
             String username = scanner.nextLine().trim();
+            User user = um.findByUsername(username).orElse(null);
+            if (user == null) {
+                System.out.println("User not found.");
+                return;
+            }
             System.out.print("Permission name: ");
             String permName = scanner.nextLine().trim();
             System.out.print("Resource: ");
             String resource = scanner.nextLine().trim();
-            boolean has = am.userHasPermission(username, permName, resource, rm.getAll());
+            boolean has = am.userHasPermission(user, permName, resource);
             System.out.println(has ? "Permission granted." : "Permission denied.");
         });
     }

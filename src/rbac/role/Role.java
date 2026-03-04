@@ -78,6 +78,10 @@ public class Role {
         return "Role{name='%s', id='%s'}".formatted(name, id);
     }
 
+    public String getId() {
+        return id;
+    }
+
     public String getName() {
         return name;
     }

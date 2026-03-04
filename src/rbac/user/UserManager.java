@@ -1,3 +1,7 @@
+package rbac.user;
+
+import rbac.Repository;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -100,14 +104,34 @@ public final class UserManager implements Repository<User> {
         return users.containsKey(username);
     }
 
+    public void delete(String username) {
+        User u = findByUsername(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        remove(u);
+    }
+
+    public List<User> searchByUsernameContains(String part) {
+        return findByFilter(UserFilters.byUsernameContains(part));
+    }
+
+    public List<User> searchByEmailDomain(String domain) {
+        return findByFilter(UserFilters.byEmailDomain(domain));
+    }
+
+    public List<User> searchByFullNameContains(String part) {
+        return findByFilter(UserFilters.byFullNameContains(part));
+    }
+
+    public List<User> searchByEmailContains(String part) {
+        return findByFilter(UserFilters.byEmailContains(part));
+    }
+
     public void update(String username, String newFullName, String newEmail) {
         String key = requireNonBlank(username, "username");
         User user = users.get(key);
         if (user == null) {
             throw new IllegalArgumentException("User with username '" + username + "' not found");
         }
-        user.setFullName(requireNonBlank(newFullName, "newFullName"));
-        user.setEmail(requireNonBlank(newEmail, "newEmail"));
+        users.put(key, new User(user.getUsername(), requireNonBlank(newFullName, "newFullName"), requireNonBlank(newEmail, "newEmail")));
     }
 
     private static String requireNonBlank(String value, String field) {

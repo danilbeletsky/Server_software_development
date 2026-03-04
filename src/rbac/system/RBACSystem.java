@@ -1,12 +1,13 @@
 package rbac.system;
 
-import rbac.manager.AssignmentManager;
-import rbac.manager.RoleManager;
-import rbac.manager.UserManager;
-import rbac.model.Assignment;
-import rbac.model.Permission;
-import rbac.model.Role;
-import rbac.model.User;
+import rbac.assignment.AssignmentManager;
+import rbac.assignment.AssignmentMetadata;
+import rbac.assignment.PermanentAssignment;
+import rbac.permission.Permission;
+import rbac.role.Role;
+import rbac.role.RoleManager;
+import rbac.user.User;
+import rbac.user.UserManager;
 
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ public class RBACSystem {
     public RBACSystem() {
         this.userManager = new UserManager();
         this.roleManager = new RoleManager();
-        this.assignmentManager = new AssignmentManager();
+        this.assignmentManager = new AssignmentManager(userManager, roleManager);
     }
 
     public UserManager getUserManager() {
@@ -53,7 +54,7 @@ public class RBACSystem {
         Permission deleteRoles = new Permission("DELETE", "ROLES", "Delete roles");
 
         // roles
-        Role admin = new Role(UUID.randomUUID().toString(), "Admin", "System administrator");
+        Role admin = new Role("Admin", "System administrator");
         admin.addPermission(readUsers);
         admin.addPermission(writeUsers);
         admin.addPermission(deleteUsers);
@@ -61,12 +62,12 @@ public class RBACSystem {
         admin.addPermission(writeRoles);
         admin.addPermission(deleteRoles);
 
-        Role manager = new Role(UUID.randomUUID().toString(), "Manager", "Manager role");
+        Role manager = new Role("Manager", "Manager role");
         manager.addPermission(readUsers);
         manager.addPermission(writeUsers);
         manager.addPermission(readRoles);
 
-        Role viewer = new Role(UUID.randomUUID().toString(), "Viewer", "Read-only user");
+        Role viewer = new Role("Viewer", "Read-only user");
         viewer.addPermission(readUsers);
         viewer.addPermission(readRoles);
 
@@ -80,13 +81,10 @@ public class RBACSystem {
         setCurrentUser("admin");
 
         // assign Admin role to admin
-        Assignment assignment = new Assignment(
-                adminUser.getUsername(),
-                admin.getName(),
-                Assignment.Type.PERMANENT,
-                "2026-01-01",
-                null,
-                "Initial admin"
+        PermanentAssignment assignment = new PermanentAssignment(
+                adminUser,
+                admin,
+                AssignmentMetadata.now("system", "Initial admin")
         );
         assignmentManager.add(assignment);
     }
@@ -94,12 +92,12 @@ public class RBACSystem {
     public String generateStatistics() {
         int userCount = userManager.getAll().size();
         int roleCount = roleManager.getAll().size();
-        int totalAssignments = assignmentManager.getAll().size();
-        long activeAssignments = assignmentManager.getAll().stream()
-                .filter(a -> a.getStatus() == Assignment.Status.ACTIVE)
+        int totalAssignments = assignmentManager.findAll().size();
+        long activeAssignments = assignmentManager.findAll().stream()
+                .filter(a -> a.isActive())
                 .count();
-        long expiredAssignments = assignmentManager.getAll().stream()
-                .filter(a -> a.getStatus() == Assignment.Status.EXPIRED)
+        long expiredAssignments = assignmentManager.findAll().stream()
+                .filter(a -> !a.isActive())
                 .count();
 
         double avgRolesPerUser = userCount == 0

@@ -1,11 +1,11 @@
 package rbac.report;
 
-import rbac.manager.AssignmentManager;
-import rbac.manager.RoleManager;
-import rbac.manager.UserManager;
-import rbac.model.Assignment;
-import rbac.model.Role;
-import rbac.model.User;
+import rbac.assignment.AssignmentManager;
+import rbac.assignment.RoleAssignment;
+import rbac.role.Role;
+import rbac.role.RoleManager;
+import rbac.user.User;
+import rbac.user.UserManager;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -21,11 +21,11 @@ public class ReportGenerator {
         for (User user : userManager.getAll()) {
             sb.append(String.format("User: %s (%s, %s)%n",
                     user.getUsername(), user.getFullName(), user.getEmail()));
-            List<Assignment> assignments = assignmentManager.getByUser(user.getUsername());
+            List<RoleAssignment> assignments = assignmentManager.findByUser(user);
             if (assignments.isEmpty()) {
                 sb.append("  No roles").append(System.lineSeparator());
             } else {
-                for (Assignment a : assignments) {
+                for (RoleAssignment a : assignments) {
                     sb.append(String.format("  - %s (%s, %s)%n",
                             a.getRoleName(), a.getType(), a.getStatus()));
                 }
@@ -40,8 +40,8 @@ public class ReportGenerator {
         sb.append("Role report").append(System.lineSeparator());
         sb.append("============").append(System.lineSeparator());
         for (Role role : roleManager.getAll()) {
-            long userCount = assignmentManager.getByRole(role.getName()).stream()
-                    .map(Assignment::getUsername)
+            long userCount = assignmentManager.findByRole(role).stream()
+                    .map(RoleAssignment::getUsername)
                     .distinct()
                     .count();
             sb.append(String.format("Role: %s (users=%d, permissions=%d)%n",
@@ -55,10 +55,9 @@ public class ReportGenerator {
         sb.append("Permission matrix").append(System.lineSeparator());
         sb.append("==================").append(System.lineSeparator());
 
-        // Collect all resources
         Set<String> resources = new TreeSet<>();
-        for (Assignment a : assignmentManager.getAll()) {
-            resources.add(a.getRoleName());
+        for (RoleAssignment a : assignmentManager.findAll()) {
+            if (a.getRoleName() != null) resources.add(a.getRoleName());
         }
         List<String> usernames = userManager.getAll().stream()
                 .map(User::getUsername)
@@ -74,9 +73,11 @@ public class ReportGenerator {
 
         for (String username : usernames) {
             sb.append(String.format("%-20s", username));
+            User u = userManager.findByUsername(username).orElse(null);
+            List<RoleAssignment> userAssignments = assignmentManager.findByUser(u);
             for (String role : resources) {
-                boolean hasRole = assignmentManager.getByUser(username).stream()
-                        .anyMatch(a -> a.getRoleName().equals(role));
+                boolean hasRole = userAssignments.stream()
+                        .anyMatch(a -> role.equals(a.getRoleName()));
                 sb.append(String.format("%-15s", hasRole ? "X" : ""));
             }
             sb.append(System.lineSeparator());
