@@ -1,0 +1,80 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "main", "Dev", "feature/*" ]
+  pull_request:
+    branches: [ "main", "Dev" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create output directory
+        run: mkdir -p out
+
+      - name: Compile Java files
+        run: |
+          echo "Compiling Java files..."
+          javac -d out -sourcepath src $(find src -name "*.java")
+          echo "Compilation completed!"
+
+      - name: Create JAR file
+        run: |
+          echo "Creating JAR file..."
+          jar cf rbac-system.jar -C out .
+          echo "JAR created: rbac-system.jar"
+
+      - name: Display build info
+        run: |
+          echo "Build completed at $(date)"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "JAR size: $(du -h rbac-system.jar | cut -f1)"
+
+      - name: Upload JAR as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbac-system-${{ github.sha }}
+          path: rbac-system.jar
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Dev'
+
+    steps:
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rbac-system-${{ github.sha }}
+
+      - name: Deploy application
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Deploying to PRODUCTION environment..."
+            mkdir -p deploy/production
+            cp rbac-system.jar deploy/production/
+            echo "Production deployment completed at $(date)" > deploy/production/deploy-info.txt
+          else
+            echo "Deploying to DEVELOPMENT environment..."
+            mkdir -p deploy/development
+            cp rbac-system.jar deploy/development/
+            echo "Development deployment completed at $(date)" > deploy/development/deploy-info.txt
+          fi
+
+      - name: Upload deployment info
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ github.ref_name }}
+          path: deploy/
