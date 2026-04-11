@@ -115,47 +115,44 @@ public class Main {
                         break;
                     }
 
-AssignmentMetadata meta =
-        AssignmentMetadata.now("Система", "Назначение вручную");
+                    AssignmentMetadata meta =
+                            AssignmentMetadata.now("Система", "Назначение вручную");
 
-PermanentAssignment pa =
-        new PermanentAssignment(user, role, meta);
+                    PermanentAssignment pa =
+                            new PermanentAssignment(user, role, meta);
 
                     assignments.add(pa);
 
                     System.out.println("Роль назначена.");
                 }
 
-                        case "5" -> {
-                        if (roles.isEmpty()) {
-        System.out.println("Роли не соданы.");
+                case "5" -> {
+                    if (roles.isEmpty()) {
+                        System.out.println("Роли не созданы.");
                     } else {
-                            roles.values().forEach(r -> {
-        System.out.println(r.format());
-        });
-        }
-        }
-
-        case "6" -> {
-        if (assignments.isEmpty()) {
-        System.out.println("Не рузльтатов.");
-                    } else {
-                            assignments.forEach(a ->
-        System.out.println(
-                                        ((AbstractRoleAssignment) a).summary()
-                                ));
-                                        }
-                                        }
-
-                                        case "0" -> {
-running = false;
-        System.out.println("Выход...");
+                        roles.values().forEach(r -> System.out.println(r.format()));
+                    }
                 }
 
-default -> System.out.println("Неверное значение");
-            }
+                case "6" -> {
+                    if (assignments.isEmpty()) {
+                        System.out.println("Нет результатов.");
+                    } else {
+                        assignments.forEach(a ->
+                                System.out.println(((AbstractRoleAssignment) a).summary())
+                        );
                     }
+                }
 
-                    scanner.close();
-    }
+                case "0" -> {
+                    running = false;
+                    System.out.println("Выход...");
+                }
+
+                default -> System.out.println("Неверное значение");
             }
+        }
+
+        scanner.close();
+    }
+}
