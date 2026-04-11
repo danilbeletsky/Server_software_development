@@ -30,6 +30,9 @@ public record User(String username, String fullname, String email) {
     public String getFullName() { return fullname; }
     public String getEmail() { return email; }
 
+    /** Стабильный идентификатор пользователя в отчётах и менеджерах. */
+    public String getId() { return username; }
+
 
         private static boolean isBlank(String s){
             return s == null || s.isBlank();

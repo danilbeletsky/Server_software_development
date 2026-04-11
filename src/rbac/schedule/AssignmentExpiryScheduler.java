@@ -1,9 +1,9 @@
-package com.mileshko.rbac.schedule;
+package rbac.schedule;
 
-import com.mileshko.rbac.managers.RbacManagers.AssignmentManager;
-import com.mileshko.rbac.managers.RbacManagers.RoleManager;
-import com.mileshko.rbac.managers.RbacManagers.UserManager;
-import com.mileshko.rbac.worker.RbacWorkers.QueuedAuditLog;
+import rbac.managers.RbacManagers.AssignmentManager;
+import rbac.managers.RbacManagers.RoleManager;
+import rbac.managers.RbacManagers.UserManager;
+import rbac.worker.RbacWorkers.QueuedAuditLog;
 
 import java.time.Instant;
 import java.util.concurrent.Executors;
