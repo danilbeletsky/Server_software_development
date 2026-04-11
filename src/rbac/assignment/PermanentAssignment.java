@@ -29,4 +29,11 @@ public class PermanentAssignment extends AbstractRoleAssignment {
     public String assignmentType() {
         return "PERMANENT";
     }
+
+    @Override
+    public void setActive(boolean active) {
+        if (!active) {
+            revoke();
+        }
+    }
 }

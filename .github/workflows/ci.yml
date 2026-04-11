@@ -26,7 +26,7 @@ jobs:
       - name: Compile Java files
         run: |
           echo "Compiling Java files..."
-          javac -d out -sourcepath src $(find src -name "*.java")
+          javac --release 17 -encoding UTF-8 -d out -sourcepath src $(find src -name "*.java")
           echo "Compilation completed!"
 
       - name: Create JAR file

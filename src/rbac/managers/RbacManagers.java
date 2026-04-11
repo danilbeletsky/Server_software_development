@@ -1,12 +1,12 @@
-package com.mileshko.rbac.managers;
+package rbac.managers;
 
-import com.mileshko.rbac.filter.AssignmentFilter;
-import com.mileshko.rbac.filter.RoleFilter;
-import com.mileshko.rbac.filter.UserFilter;
-import com.mileshko.rbac.model.Permission;
-import com.mileshko.rbac.model.Role;
-import com.mileshko.rbac.model.RoleAssignment;
-import com.mileshko.rbac.model.User;
+import rbac.assignment.AssignmentFilter;
+import rbac.assignment.RoleAssignment;
+import rbac.permission.Permission;
+import rbac.role.Role;
+import rbac.role.RoleFilter;
+import rbac.user.User;
+import rbac.user.UserFilter;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,7 +14,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -29,15 +28,14 @@ public final class RbacManagers {
     public static final class UserManager {
         private final Map<String, User> users = new ConcurrentHashMap<>();
 
-        public User create(String login, String displayName) {
-            String id = UUID.randomUUID().toString();
-            User u = new User(id, login, displayName, true);
-            users.put(id, u);
+        public User create(String username, String fullname, String email) {
+            User u = User.validate(username, fullname, email);
+            users.put(u.getUsername(), u);
             return u;
         }
 
-        public Optional<User> get(String id) {
-            return Optional.ofNullable(users.get(id));
+        public Optional<User> get(String username) {
+            return Optional.ofNullable(users.get(username));
         }
 
         public Collection<User> listAll() {
@@ -45,17 +43,17 @@ public final class RbacManagers {
         }
 
         public List<User> findByFilter(UserFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return new ArrayList<>(users.values());
             }
-            return users.values().stream().filter(filter.toPredicate()).toList();
+            return users.values().stream().filter(filter::test).toList();
         }
 
         public List<User> findByFilterParallel(UserFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return users.values().parallelStream().toList();
             }
-            return users.values().parallelStream().filter(filter.toPredicate()).toList();
+            return users.values().parallelStream().filter(filter::test).toList();
         }
 
         public Stream<User> stream() {
@@ -63,15 +61,15 @@ public final class RbacManagers {
         }
 
         public boolean update(User updated) {
-            if (users.get(updated.getId()) == null) {
+            if (updated == null || users.get(updated.getUsername()) == null) {
                 return false;
             }
-            users.put(updated.getId(), updated);
+            users.put(updated.getUsername(), updated);
             return true;
         }
 
-        public boolean delete(String id) {
-            return users.remove(id) != null;
+        public boolean delete(String username) {
+            return users.remove(username) != null;
         }
 
         public int size() {
@@ -96,9 +94,8 @@ public final class RbacManagers {
         private final Map<String, Role> roles = new ConcurrentHashMap<>();
 
         public Role create(String name, String description) {
-            String id = UUID.randomUUID().toString();
-            Role r = new Role(id, name, description, null);
-            roles.put(id, r);
+            Role r = new Role(name, description);
+            roles.put(r.getId(), r);
             return r;
         }
 
@@ -111,17 +108,17 @@ public final class RbacManagers {
         }
 
         public List<Role> findByFilter(RoleFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return new ArrayList<>(roles.values());
             }
-            return roles.values().stream().filter(filter.toPredicate()).toList();
+            return roles.values().stream().filter(filter::test).toList();
         }
 
         public List<Role> findByFilterParallel(RoleFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return roles.values().parallelStream().toList();
             }
-            return roles.values().parallelStream().filter(filter.toPredicate()).toList();
+            return roles.values().parallelStream().filter(filter::test).toList();
         }
 
         public Stream<Role> stream() {
@@ -129,7 +126,7 @@ public final class RbacManagers {
         }
 
         public boolean update(Role updated) {
-            if (!roles.containsKey(updated.getId())) {
+            if (updated == null || !roles.containsKey(updated.getId())) {
                 return false;
             }
             roles.put(updated.getId(), updated);
@@ -137,7 +134,12 @@ public final class RbacManagers {
         }
 
         public boolean delete(String id) {
-            return roles.remove(id) != null;
+            Role removed = roles.remove(id);
+            if (removed != null) {
+                removed.releaseName();
+                return true;
+            }
+            return false;
         }
 
         public int size() {
@@ -145,10 +147,16 @@ public final class RbacManagers {
         }
 
         public void clear() {
+            for (Role r : roles.values()) {
+                r.releaseName();
+            }
             roles.clear();
         }
 
         public void putAll(Map<String, Role> map) {
+            for (Role r : roles.values()) {
+                r.releaseName();
+            }
             roles.clear();
             roles.putAll(map);
         }
@@ -161,15 +169,23 @@ public final class RbacManagers {
     public static final class PermissionManager {
         private final Map<String, Permission> permissions = new ConcurrentHashMap<>();
 
-        public Permission create(String name, String description) {
-            String id = UUID.randomUUID().toString();
-            Permission p = new Permission(id, name, description);
-            permissions.put(id, p);
+        private static String key(Permission p) {
+            return p.getName() + "@" + p.getResource();
+        }
+
+        public Permission create(String name, String resource, String description) {
+            Permission p = new Permission(name, resource, description);
+            permissions.put(key(p), p);
             return p;
         }
 
-        public Optional<Permission> get(String id) {
-            return Optional.ofNullable(permissions.get(id));
+        public Optional<Permission> get(String name, String resource) {
+            Permission probe = new Permission(name, resource, "x");
+            return Optional.ofNullable(permissions.get(key(probe)));
+        }
+
+        public Optional<Permission> getByKey(String permissionKey) {
+            return Optional.ofNullable(permissions.get(permissionKey));
         }
 
         public Collection<Permission> listAll() {
@@ -181,15 +197,20 @@ public final class RbacManagers {
         }
 
         public boolean update(Permission updated) {
-            if (!permissions.containsKey(updated.getId())) {
+            if (updated == null) {
                 return false;
             }
-            permissions.put(updated.getId(), updated);
+            String k = key(updated);
+            if (!permissions.containsKey(k)) {
+                return false;
+            }
+            permissions.put(k, updated);
             return true;
         }
 
-        public boolean delete(String id) {
-            return permissions.remove(id) != null;
+        public boolean delete(String name, String resource) {
+            Permission probe = new Permission(name, resource, "x");
+            return permissions.remove(key(probe)) != null;
         }
 
         public int size() {
@@ -227,17 +248,17 @@ public final class RbacManagers {
         }
 
         public List<RoleAssignment> findByFilter(AssignmentFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return new ArrayList<>(assignments.values());
             }
-            return assignments.values().stream().filter(filter.toPredicate()).toList();
+            return assignments.values().stream().filter(filter::test).toList();
         }
 
         public List<RoleAssignment> findByFilterParallel(AssignmentFilter filter) {
-            if (filter == null || filter.isEmpty()) {
+            if (filter == null) {
                 return assignments.values().parallelStream().toList();
             }
-            return assignments.values().parallelStream().filter(filter.toPredicate()).toList();
+            return assignments.values().parallelStream().filter(filter::test).toList();
         }
 
         public Stream<RoleAssignment> stream() {
@@ -245,7 +266,7 @@ public final class RbacManagers {
         }
 
         public boolean update(RoleAssignment updated) {
-            if (!assignments.containsKey(updated.getId())) {
+            if (updated == null || !assignments.containsKey(updated.getId())) {
                 return false;
             }
             assignments.put(updated.getId(), updated);
@@ -257,6 +278,7 @@ public final class RbacManagers {
         }
 
         public int deactivateExpired(Instant now) {
+            Instant ref = now != null ? now : Instant.now();
             int n = 0;
             List<String> ids;
             synchronized (this) {
@@ -267,10 +289,10 @@ public final class RbacManagers {
                 if (a == null) {
                     continue;
                 }
-                if (a.isActive() && a.isExpired(now)) {
+                if (a.isActive() && a.isExpired(ref)) {
                     synchronized (this) {
                         RoleAssignment cur = assignments.get(id);
-                        if (cur != null && cur.isActive() && cur.isExpired(now)) {
+                        if (cur != null && cur.isActive() && cur.isExpired(ref)) {
                             cur.setActive(false);
                             n++;
                         }
