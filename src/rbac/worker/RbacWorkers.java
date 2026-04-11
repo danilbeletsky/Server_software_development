@@ -1,6 +1,6 @@
-package com.mileshko.rbac.worker;
+package rbac.worker;
 
-import com.mileshko.rbac.model.AuditLogEntry;
+import rbac.audit.AuditLogEntry;
 
 import java.time.Instant;
 import java.util.List;

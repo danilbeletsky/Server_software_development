@@ -3,13 +3,16 @@ package rbac.assignment;
 import rbac.role.Role;
 import rbac.user.User;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class TemporaryAssignment extends AbstractRoleAssignment {
 
     private String expiresAt;
     private boolean autoRenew;
+    private boolean forceInactive;
 
     public TemporaryAssignment(User user, Role role,
                                AssignmentMetadata metadata,
@@ -22,7 +25,7 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
 
     @Override
     public boolean isActive() {
-        return !isExpired();
+        return !forceInactive && !isExpired();
     }
 
     @Override
@@ -33,6 +36,16 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
     public boolean isExpired() {
         LocalDateTime exp = LocalDateTime.parse(expiresAt.replace(" ", "T"));
         return LocalDateTime.now().isAfter(exp);
+    }
+
+    @Override
+    public boolean isExpired(Instant now) {
+        if (now == null || expiresAt == null) {
+            return isExpired();
+        }
+        LocalDateTime exp = LocalDateTime.parse(expiresAt.replace(" ", "T"));
+        LocalDateTime ref = now.atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return ref.isAfter(exp);
     }
 
     public void extend(String newExpirationDate) {
@@ -46,6 +59,11 @@ public class TemporaryAssignment extends AbstractRoleAssignment {
     @Override
     public String summary() {
         return super.summary() + "\nExpiration: " + expiresAt;
+    }
+
+    @Override
+    public void setActive(boolean active) {
+        forceInactive = !active;
     }
 
     @Override

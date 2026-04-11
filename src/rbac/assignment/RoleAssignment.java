@@ -3,6 +3,7 @@ package rbac.assignment;
 import rbac.role.Role;
 import rbac.user.User;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 public interface RoleAssignment {
@@ -37,4 +38,13 @@ public interface RoleAssignment {
     default String getExpiresAt() { return null; }
     default void revoke() {}
     default void setExpirationDate(java.time.LocalDate date) {}
+
+    /** Для менеджеров с явной деактивацией по времени; по умолчанию не истекает. */
+    default boolean isExpired(Instant now) {
+        return false;
+    }
+
+    /** Снять активность (например, при истечении срока); реализации могут переопределить. */
+    default void setActive(boolean active) {
+    }
 }
