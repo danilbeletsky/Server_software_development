@@ -1,96 +1,87 @@
-package rbac.report;
+package com.mileshko.rbac.report;
 
-import rbac.assignment.AssignmentManager;
-import rbac.assignment.RoleAssignment;
-import rbac.role.Role;
-import rbac.role.RoleManager;
-import rbac.user.User;
-import rbac.user.UserManager;
+import com.mileshko.rbac.managers.RbacManagers.AssignmentManager;
+import com.mileshko.rbac.managers.RbacManagers.RoleManager;
+import com.mileshko.rbac.managers.RbacManagers.UserManager;
+import com.mileshko.rbac.model.Role;
+import com.mileshko.rbac.model.User;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-public class ReportGenerator {
+/**
+ * Параллельные отчёты (ветка feature/parallel-logs).
+ */
+public final class ReportGenerator {
+    private final UserManager users;
+    private final RoleManager roles;
+    private final AssignmentManager assignments;
 
-    public String generateUserReport(UserManager userManager, AssignmentManager assignmentManager) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("User report").append(System.lineSeparator());
-        sb.append("================").append(System.lineSeparator());
-        for (User user : userManager.getAll()) {
-            sb.append(String.format("User: %s (%s, %s)%n",
-                    user.getUsername(), user.getFullName(), user.getEmail()));
-            List<RoleAssignment> assignments = assignmentManager.findByUser(user);
-            if (assignments.isEmpty()) {
-                sb.append("  No roles").append(System.lineSeparator());
-            } else {
-                for (RoleAssignment a : assignments) {
-                    sb.append(String.format("  - %s (%s, %s)%n",
-                            a.getRoleName(), a.getType(), a.getStatus()));
-                }
-            }
-            sb.append(System.lineSeparator());
-        }
-        return sb.toString();
+    public ReportGenerator(UserManager users, RoleManager roles, AssignmentManager assignments) {
+        this.users = users;
+        this.roles = roles;
+        this.assignments = assignments;
     }
 
-    public String generateRoleReport(RoleManager roleManager, AssignmentManager assignmentManager) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Role report").append(System.lineSeparator());
-        sb.append("============").append(System.lineSeparator());
-        for (Role role : roleManager.getAll()) {
-            long userCount = assignmentManager.findByRole(role).stream()
-                    .map(RoleAssignment::getUsername)
-                    .distinct()
-                    .count();
-            sb.append(String.format("Role: %s (users=%d, permissions=%d)%n",
-                    role.getName(), userCount, role.getPermissions().size()));
-        }
-        return sb.toString();
+    public String buildUsersReportParallel() {
+        List<User> list = new ArrayList<>(users.listAll());
+        long active = list.parallelStream().filter(User::isActive).count();
+        long inactive = list.size() - active;
+        String header = "Всего пользователей: " + list.size()
+                + ", активных: " + active
+                + ", неактивных: " + inactive + "\n";
+        String body = list.parallelStream()
+                .sorted((a, b) -> a.getId().compareTo(b.getId()))
+                .map(u -> u.getId() + "\t" + u.getLogin() + "\t" + u.getDisplayName() + "\t" + u.isActive())
+                .collect(Collectors.joining("\n"));
+        return header + body;
     }
 
-    public String generatePermissionMatrix(UserManager userManager, AssignmentManager assignmentManager) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Permission matrix").append(System.lineSeparator());
-        sb.append("==================").append(System.lineSeparator());
-
-        Set<String> resources = new TreeSet<>();
-        for (RoleAssignment a : assignmentManager.findAll()) {
-            if (a.getRoleName() != null) resources.add(a.getRoleName());
-        }
-        List<String> usernames = userManager.getAll().stream()
-                .map(User::getUsername)
+    public String buildPermissionMatrixParallel() {
+        Map<String, Role> roleById = roles.snapshotMap();
+        List<String> userIds = users.stream()
+                .map(User::getId)
                 .sorted()
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
 
-        sb.append("Users × Roles").append(System.lineSeparator());
-        sb.append(String.format("%-20s", "User"));
-        for (String role : resources) {
-            sb.append(String.format("%-15s", role));
-        }
-        sb.append(System.lineSeparator());
+        Map<String, Set<String>> matrix = userIds.parallelStream().collect(Collectors.toConcurrentMap(
+                uid -> uid,
+                uid -> collectPermissionIdsForUser(uid, roleById),
+                (a, b) -> a
+        ));
 
-        for (String username : usernames) {
-            sb.append(String.format("%-20s", username));
-            User u = userManager.findByUsername(username).orElse(null);
-            List<RoleAssignment> userAssignments = assignmentManager.findByUser(u);
-            for (String role : resources) {
-                boolean hasRole = userAssignments.stream()
-                        .anyMatch(a -> role.equals(a.getRoleName()));
-                sb.append(String.format("%-15s", hasRole ? "X" : ""));
-            }
-            sb.append(System.lineSeparator());
+        TreeMap<String, Set<String>> sorted = new TreeMap<>(matrix);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Матрица прав (userId → permissionIds):\n");
+        for (Map.Entry<String, Set<String>> e : sorted.entrySet()) {
+            List<String> perms = new ArrayList<>(e.getValue());
+            Collections.sort(perms);
+            sb.append(e.getKey()).append(" → ").append(String.join(", ", perms)).append("\n");
         }
         return sb.toString();
     }
 
-    public void exportToFile(String report, String filename) {
-        try (FileWriter fw = new FileWriter(filename)) {
-            fw.write(report);
-        } catch (IOException e) {
-            System.out.println("Failed to save report: " + e.getMessage());
-        }
+    private Set<String> collectPermissionIdsForUser(String userId, Map<String, Role> roleById) {
+        return assignments.stream()
+                .filter(a -> a.getUserId().equals(userId) && a.isActive())
+                .map(a -> roleById.get(a.getRoleId()))
+                .filter(r -> r != null)
+                .flatMap(r -> r.getPermissionIds().stream())
+                .collect(Collectors.toSet());
+    }
+
+    public Map<String, Object> usersStatisticsParallel() {
+        List<User> list = new ArrayList<>(users.listAll());
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total", list.size());
+        stats.put("active", list.parallelStream().filter(User::isActive).count());
+        stats.put("inactive", list.parallelStream().filter(u -> !u.isActive()).count());
+        return stats;
     }
 }
-
