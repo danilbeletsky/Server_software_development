@@ -1,0 +1,15 @@
+com/taxi/user/UserDomainService.class
+com/taxi/user/JwtService.class
+com/taxi/user/TokenReq.class
+com/taxi/user/Driver.class
+com/taxi/user/DriverReq.class
+com/taxi/user/PassengerReq.class
+com/taxi/user/DriverRepo.class
+com/taxi/user/Passenger.class
+com/taxi/user/UserServiceApplication.class
+com/taxi/user/JwtFilter.class
+com/taxi/user/StatusReq.class
+com/taxi/user/PassengerRepo.class
+com/taxi/user/DriverStatus.class
+com/taxi/user/ApiController.class
+com/taxi/user/TokenResp.class

@@ -1,0 +1,16 @@
+com/taxi/trip/JwtFilter.class
+com/taxi/trip/RateReq.class
+com/taxi/trip/TripStatus.class
+com/taxi/trip/TripRepo.class
+com/taxi/trip/UpdateStatusReq.class
+com/taxi/trip/NotificationMsg.class
+com/taxi/trip/TokenReq.class
+com/taxi/trip/CreateTripReq.class
+com/taxi/trip/ApiController.class
+com/taxi/trip/TripServiceApplication.class
+com/taxi/trip/TripDomainService.class
+com/taxi/trip/Trip.class
+com/taxi/trip/DriverDto.class
+com/taxi/trip/JwtService.class
+com/taxi/trip/TokenResp.class
+com/taxi/trip/StatsResp.class
